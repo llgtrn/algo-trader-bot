@@ -1,0 +1,18 @@
+# Daemon-only compose. The brain runs on a separate slow-cadence scheduler
+# (cron / Claude Code Routine), not in this always-on stack.
+services:
+  daemon:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    container_name: algo-trader-daemon
+    restart: always
+    env_file:
+      - ../.env
+    volumes:
+      - stance-bus:/data
+    # cTrader needs outbound TCP (5035 demo / 5034 live); default bridge
+    # networking allows this. No inbound ports are exposed.
+
+volumes:
+  stance-bus:

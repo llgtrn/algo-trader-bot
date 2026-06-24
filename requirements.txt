@@ -1,0 +1,8 @@
+# Daemon (24/7 muscle) dependencies. The brain reuses the vendored
+# agents/tradingagents/requirements.txt; the cTrader core uses
+# mcp/ctrader/requirements.txt.
+twisted>=23.0.0
+ctrader-open-api==0.9.2
+python-dotenv>=1.0.0
+requests>=2.31.0
+pandas>=2.0.0
