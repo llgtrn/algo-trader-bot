@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "ctrader": {
+      "command": "/absolute/path/to/ctrader-mcp-server/venv/bin/python",
+      "args": [
+        "/absolute/path/to/ctrader-mcp-server/server.py"
+      ],
+      "cwd": "/absolute/path/to/ctrader-mcp-server",
+      "env": {
+        "CLIENT_ID": "your_client_id",
+        "CLIENT_SECRET": "your_client_secret",
+        "ACCESS_TOKEN": "your_access_token",
+        "ACCOUNT_ID": "your_account_id",
+        "HOST": "demo"
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+# cTrader MCP Server - Core Dependencies
+
+# MCP Server
+mcp>=0.9.0
+
+# cTrader API
+ctrader-open-api==0.9.2
+
+# Required dependencies
+twisted>=23.0.0
+python-dotenv>=1.0.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
