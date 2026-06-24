@@ -8,6 +8,7 @@ import os
 import sys
 import json
 import asyncio
+from pathlib import Path
 from typing import Any, Optional, Dict, List
 from datetime import datetime
 from mcp.server.models import InitializationOptions
@@ -687,7 +688,17 @@ class CTraderMCPServer:
         """Initialize and connect the cTrader bot"""
         try:
             print("Initializing cTrader bot...", file=sys.stderr)
-            
+
+            # Refresh the access token if it is near expiry (no-op when unknown
+            # expiry or no refresh token). Keeps unattended runs alive past the
+            # ~30-day token lifetime. Never raises.
+            try:
+                from token_refresh import ensure_fresh
+                repo_env = Path(__file__).resolve().parent.parent.parent / ".env"
+                ensure_fresh(env_path=str(repo_env) if repo_env.exists() else None)
+            except Exception as e:
+                print(f"token refresh check skipped: {e}", file=sys.stderr)
+
             # Create the bot instance
             self.bot = SimpleCTraderBot()
             

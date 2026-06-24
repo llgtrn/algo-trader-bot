@@ -46,6 +46,14 @@ class CTraderClient:
         Never raises — the daemon must keep running and report the failure.
         """
         try:
+            # Refresh the access token if near expiry, before connecting.
+            try:
+                from token_refresh import ensure_fresh
+                repo_env = Path(__file__).resolve().parent.parent / ".env"
+                ensure_fresh(env_path=str(repo_env) if repo_env.exists() else None)
+            except Exception as exc:
+                print(f"token refresh check skipped: {exc}")
+
             from twisted.internet import reactor  # default reactor; no asyncio
 
             from ctrader_bot import SimpleCTraderBot
