@@ -14,7 +14,8 @@ your risk between runs. Safety is enforced in code by `mcp/ctrader/risk_gate.py`
 
 **B — 24/7 daemon (optional, needs an always-on host).** A plain-Python loop
 (`daemon/`) reads a `Stance` from the bus and executes within `daemon/risk.py`
-rails; the `brain/` writes stances on a slow cadence. Containerized in `deploy/`.
+rails; the `brain/` writes stances on a slow cadence. Run it as a plain process
+(`python -m daemon.heartbeat`) under a supervisor on any always-on host.
 
 ## Layout
 
@@ -28,7 +29,7 @@ agents/tradingagents/ # vendored fork of TradingAgents (Apache-2.0) — reasonin
 routine/CLAUDE.md     # standing instructions for the Claude-direct trading Routine (path A)
 daemon/               # optional 24/7 muscle (path B): heartbeat, stance bus, risk
 brain/                # optional slow-cadence reasoning that emits a Stance (path B)
-deploy/               # Dockerfile, docker-compose, .env.example (path B)
+deploy/               # .env.example template
 scripts/              # setup.sh, refresh_token.py
 tests/                # unit tests (no credentials needed)
 ```
