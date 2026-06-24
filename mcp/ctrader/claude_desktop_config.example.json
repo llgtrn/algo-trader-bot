@@ -1,17 +1,22 @@
 {
   "mcpServers": {
     "ctrader": {
-      "command": "/absolute/path/to/ctrader-mcp-server/venv/bin/python",
+      "command": "/absolute/path/to/algo-trader-bot/.venv/bin/python",
       "args": [
-        "/absolute/path/to/ctrader-mcp-server/server.py"
+        "/absolute/path/to/algo-trader-bot/mcp/ctrader/server.py"
       ],
-      "cwd": "/absolute/path/to/ctrader-mcp-server",
+      "cwd": "/absolute/path/to/algo-trader-bot/mcp/ctrader",
       "env": {
         "CLIENT_ID": "your_client_id",
         "CLIENT_SECRET": "your_client_secret",
         "ACCESS_TOKEN": "your_access_token",
         "ACCOUNT_ID": "your_account_id",
-        "HOST": "demo"
+        "HOST": "demo",
+        "LIVE_CONFIRMED": "",
+        "KILL_SWITCH_FILE": "./HALT",
+        "MAX_ORDER_LOTS": "0.10",
+        "MAX_POSITIONS": "5",
+        "REQUIRE_STOP_LOSS": "1"
       }
     }
   }

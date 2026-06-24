@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "ctrader": {
+      "command": "python",
+      "args": ["server.py"],
+      "cwd": "mcp/ctrader",
+      "env": {
+        "CLIENT_ID": "${CLIENT_ID}",
+        "CLIENT_SECRET": "${CLIENT_SECRET}",
+        "ACCESS_TOKEN": "${ACCESS_TOKEN}",
+        "ACCOUNT_ID": "${ACCOUNT_ID}",
+        "HOST": "${HOST:-demo}",
+        "LIVE_CONFIRMED": "${LIVE_CONFIRMED:-}",
+        "KILL_SWITCH_FILE": "${KILL_SWITCH_FILE:-./HALT}",
+        "MAX_ORDER_LOTS": "${MAX_ORDER_LOTS:-0.10}",
+        "MAX_POSITIONS": "${MAX_POSITIONS:-5}",
+        "REQUIRE_STOP_LOSS": "${REQUIRE_STOP_LOSS:-1}"
+      }
+    }
+  }
+}
