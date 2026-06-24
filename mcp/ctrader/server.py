@@ -24,6 +24,7 @@ except:
 
 from twisted.internet import reactor
 from ctrader_bot import SimpleCTraderBot
+from risk_gate import check_order
 import pandas as pd
 
 
@@ -329,7 +330,12 @@ class CTraderMCPServer:
                 return [types.TextContent(
                     type="text",
                     text=json.dumps({
-                        "error": "Bot not ready. Please wait for authentication and symbol loading."
+                        "error": "cTrader not connected — authentication/symbol load "
+                                 "failed or is still in progress. No mock fallback: "
+                                 "check CLIENT_ID/CLIENT_SECRET/ACCESS_TOKEN/ACCOUNT_ID/HOST "
+                                 "and outbound TCP (5035 demo / 5034 live). No orders "
+                                 "are possible until this resolves.",
+                        "connected": False,
                     }, indent=2)
                 )]
             
@@ -349,10 +355,24 @@ class CTraderMCPServer:
                     }, indent=2)
                 )]
     
+    async def _reconcile_and_wait(self, wait: float = 1.5):
+        """Trigger a server-side reconcile on the reactor thread and wait briefly.
+
+        cTrader caches positions/account from the last ProtoOAReconcileReq; reads
+        are otherwise stale. Scheduling on the reactor thread is the thread-safe
+        way to call into Twisted from this asyncio handler.
+        """
+        try:
+            reactor.callFromThread(self.bot.refresh_positions)
+            await asyncio.sleep(wait)
+        except Exception as e:
+            print(f"reconcile failed: {e}", file=sys.stderr)
+
     async def _execute_tool(self, name: str, arguments: dict) -> dict:
         """Execute a tool and return the result"""
-        
+
         if name == "get_account_status":
+            await self._reconcile_and_wait()
             status = self.bot.get_account_status()
             return {
                 "success": True,
@@ -372,6 +392,7 @@ class CTraderMCPServer:
             }
         
         elif name == "get_positions":
+            await self._reconcile_and_wait()
             positions = []
             for pos in self.bot.positions:
                 symbol_name = next(
@@ -419,17 +440,31 @@ class CTraderMCPServer:
             volume = arguments["volume"]
             stop_loss = arguments.get("stop_loss")
             take_profit = arguments.get("take_profit")
-            
+
+            gate = check_order(
+                is_entry=True, volume=volume, stop_loss=stop_loss,
+                open_positions=len(self.bot.positions),
+            )
+            if not gate.allowed:
+                return {"success": False, "rejected_by_risk_gate": True,
+                        "reason": gate.reason}
+
             # Execute in bot thread
             result = await asyncio.get_event_loop().run_in_executor(
                 None,
                 self.bot.create_market_order,
                 symbol, side, volume, stop_loss, take_profit
             )
-            
+            # "result" means the request was sent, not filled. Reconcile so the
+            # caller can confirm the actual position.
+            await self._reconcile_and_wait()
+
             return {
                 "success": result,
-                "message": f"Market order {'created' if result else 'failed'}",
+                "note": "success=request accepted by API, not a confirmed fill; "
+                        "verify via get_positions",
+                "message": f"Market order {'sent' if result else 'failed'}",
+                "open_positions": len(self.bot.positions),
                 "order_details": {
                     "symbol": symbol,
                     "side": side,
@@ -446,13 +481,21 @@ class CTraderMCPServer:
             price = arguments["price"]
             stop_loss = arguments.get("stop_loss")
             take_profit = arguments.get("take_profit")
-            
+
+            gate = check_order(
+                is_entry=True, volume=volume, stop_loss=stop_loss,
+                open_positions=len(self.bot.positions),
+            )
+            if not gate.allowed:
+                return {"success": False, "rejected_by_risk_gate": True,
+                        "reason": gate.reason}
+
             result = await asyncio.get_event_loop().run_in_executor(
                 None,
                 self.bot.create_limit_order,
                 symbol, side, volume, price, stop_loss, take_profit
             )
-            
+
             return {
                 "success": result,
                 "message": f"Limit order {'created' if result else 'failed'}",
@@ -473,13 +516,21 @@ class CTraderMCPServer:
             price = arguments["price"]
             stop_loss = arguments.get("stop_loss")
             take_profit = arguments.get("take_profit")
-            
+
+            gate = check_order(
+                is_entry=True, volume=volume, stop_loss=stop_loss,
+                open_positions=len(self.bot.positions),
+            )
+            if not gate.allowed:
+                return {"success": False, "rejected_by_risk_gate": True,
+                        "reason": gate.reason}
+
             result = await asyncio.get_event_loop().run_in_executor(
                 None,
                 self.bot.create_stop_order,
                 symbol, side, volume, price, stop_loss, take_profit
             )
-            
+
             return {
                 "success": result,
                 "message": f"Stop order {'created' if result else 'failed'}",
@@ -602,7 +653,7 @@ class CTraderMCPServer:
             
             result = await asyncio.get_event_loop().run_in_executor(
                 None,
-                self.bot.subscribe_to_symbol,
+                self.bot.subscribe_to_ticks,
                 symbol
             )
             
@@ -617,7 +668,7 @@ class CTraderMCPServer:
             
             result = await asyncio.get_event_loop().run_in_executor(
                 None,
-                self.bot.unsubscribe_from_symbol,
+                self.bot.unsubscribe_from_ticks,
                 symbol
             )
             
@@ -679,26 +730,15 @@ class CTraderMCPServer:
             print("✓ Connected to live cTrader API", file=sys.stderr)
             
             return True
-            
+
         except Exception as e:
+            # NO mock-mode fallback. A trading server must never fabricate a
+            # "connected" state with fake symbols — that risks Claude believing it
+            # placed real trades. Fail loudly and leave bot_ready=False so every
+            # tool returns a clear "not connected" error.
             print(f"Error initializing bot: {e}", file=sys.stderr)
-            # Fall back to mock mode if real connection fails
-            print("Falling back to mock mode...", file=sys.stderr)
-            self.bot = SimpleCTraderBot()
-            self.bot.is_connected = True
-            self.bot.is_app_authenticated = True  
-            self.bot.is_account_authenticated = True
-            self.bot.symbols = {}
-            for i in range(362):
-                symbol_name = f"SYMBOL_{i:03d}"
-                self.bot.symbols[symbol_name] = {
-                    'id': i + 1,
-                    'name': symbol_name,
-                    'digits': 5
-                }
-            self.bot_ready = True
-            print(f"✓ Bot ready! Loaded {len(self.bot.symbols)} symbols (mock mode)", file=sys.stderr)
-            return True
+            self.bot_ready = False
+            return False
     
     async def run(self):
         """Run the MCP server"""
